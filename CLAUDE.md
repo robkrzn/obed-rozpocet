@@ -92,6 +92,9 @@ Platca („to som ja") v texte nie je. Kontrolný riadok „Jedlá + extra = cel
 - **GitHub Pages**, statické súbory, bez Firebase (appka neobsahuje dáta → nie je čo zabezpečovať).
   Firebase (Auth/Firestore) až keď bude treba synchronizovať zoznam kolegov medzi zariadeniami.
 - HTTPS (Pages) je potrebné pre `navigator.clipboard`; z `file://` appka padá na `execCommand('copy')`.
+- **Aktualizácie PWA sú automatické:** `sw.js` je network-first (`cache: 'no-cache'`), takže po nasadení si appka pri
+  najbližšom otvorení s internetom stiahne novú verziu sama; netreba nič preinštalovávať ani zvyšovať verziu.
+  Appka otvorená na pozadí (najmä iOS) sa načíta nanovo až po úplnom zavretí a otvorení. Offline beží z poslednej uloženej verzie.
 - PWA: „Pridať na plochu" → `localStorage` sa zachová. iOS: úložisko PWA je oddelené od Safari,
   nastavenia treba zadať znova priamo v PWA.
 

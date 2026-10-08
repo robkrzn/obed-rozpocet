@@ -6,6 +6,7 @@ self.addEventListener('install', e => e.waitUntil(
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(fetch(e.request).then(r => { const k = r.clone(); caches.open(C).then(c => c.put(e.request, k)); return r; })
+  // no-cache = vždy sa opýtať servera (304, ak sa nezmenilo); GitHub Pages inak drží súbory 10 min (max-age=600)
+  e.respondWith(fetch(e.request, { cache: 'no-cache' }).then(r => { const k = r.clone(); caches.open(C).then(c => c.put(e.request, k)); return r; })
     .catch(() => caches.match(e.request)));
 });
