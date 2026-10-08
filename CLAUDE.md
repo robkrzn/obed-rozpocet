@@ -9,11 +9,14 @@ má kto poslať, a vygeneruje **payme.sk odkaz** pre každého + text na skopír
 | Súbor | Čo robí |
 |---|---|
 | `index.html` | formulár + render, vanilla JS, žiadny framework/build |
-| `calc.js` | čistá logika (centy, rozdelenie, IBAN, payme URL, text do Teamsu); žiadny DOM |
-| `test.js` | `node test.js` — asserty nad `calc.js`, vrátane reálnej Bolt objednávky |
-| `manifest.json`, `sw.js`, `icon-*.png` | PWA (network-first s offline zálohou, netreba verzovať cache) |
+| `src/calc.js` | čistá logika (centy, rozdelenie, IBAN, payme URL, text do Teamsu); žiadny DOM |
+| `test/calc.test.js` | `npm test` / `node test/calc.test.js` — asserty nad `calc.js`, vrátane reálnej Bolt objednávky |
+| `manifest.json`, `sw.js` | PWA, **musia ostať v koreni** (scope service workera); network-first s offline zálohou |
+| `icons/` | ikony PWA (192, 512) |
+| `README.md`, `package.json` | verejný popis repa; `package.json` má len skript `test`, žiadne závislosti |
 
-Spustenie: dvojklik na `index.html` (alebo GitHub Pages). Po zmene `calc.js` vždy `node test.js`.
+Spustenie: dvojklik na `index.html` (alebo GitHub Pages). Po zmene `src/calc.js` vždy `npm test`.
+Pri pridaní/premenovaní súboru appky aktualizovať zoznam v `sw.js` (offline cache).
 
 ## Pravidlá
 

@@ -1,0 +1,9 @@
+{
+  "name": "obed-rozpocet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rozpočítanie spoločného obeda s payme.sk odkazmi",
+  "scripts": {
+    "test": "node test/calc.test.js"
+  }
+}

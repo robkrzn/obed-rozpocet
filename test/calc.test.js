@@ -1,6 +1,6 @@
-// node test.js — padne na prvom zlom výpočte. Žiadne frameworky.
+// node test/calc.test.js — padne na prvom zlom výpočte. Žiadne frameworky.
 const assert = require('assert/strict');
-const { eur, split, compute, ibanOk, payUrl, summaryText } = require('./calc.js');
+const { eur, split, compute, ibanOk, payUrl, summaryText } = require('../src/calc.js');
 
 const sum = a => a.reduce((x, y) => x + y, 0);
 const food = (id, name, q, c) => ({ id, name, q, c: eur(c) });
