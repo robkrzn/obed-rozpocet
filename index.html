@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Obed – rozpočet</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#16a34a">
+<style>
+:root{color-scheme:light dark;--bg:#fff;--fg:#1a1a1a;--mut:#6b7280;--line:#d1d5db;--acc:#16a34a;--err:#b91c1c;--card:#f3f4f6}
+@media(prefers-color-scheme:dark){:root{--bg:#111315;--fg:#ececec;--mut:#9aa0a6;--line:#33383d;--acc:#4ade80;--err:#f87171;--card:#1c1f22}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:1.6rem;margin:0 0 12px}
+h2{font-size:.8rem;margin:22px 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+input,select,button,textarea{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;min-width:0}
+button{cursor:pointer}
+button.p{background:var(--acc);border-color:var(--acc);color:#000;font-weight:600}
+button.x{padding:8px 10px;color:var(--mut)}
+details{background:var(--card);border-radius:10px;padding:10px 12px}
+details label{display:block;margin-top:8px;color:var(--mut);font-size:.8rem}
+details input{width:100%;box-sizing:border-box;background:var(--bg)}
+.row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.row .n{flex:1}.s{width:5.5rem;flex:none}
+.person{background:var(--card);border-radius:10px;padding:10px;margin-bottom:10px}
+.person input,.person select{background:var(--bg)}
+.person select{flex:1}
+.me{white-space:nowrap;font-size:.8rem;color:var(--mut);display:flex;gap:4px;align-items:center}
+.err{color:var(--err);padding-left:18px;margin:6px 0}
+.hint{color:var(--mut);font-size:.8rem}
+.res{display:flex;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.res>div{flex:1}.res small{display:block;color:var(--mut)}.res strong{font-size:1.25rem}
+.res a{color:var(--acc)}
+textarea{width:100%;box-sizing:border-box;min-height:7rem;margin:10px 0 6px}
+#ok{color:var(--acc)}#bad{color:var(--err)}
+</style>
+</head>
+<body>
+<main>
+<h1>🍽 Obed – rozpočet</h1>
+
+<details id="set">
+  <summary>Nastavenia príjemcu (uložené len v tomto zariadení)</summary>
+  <label>Meno príjemcu <input data-cfg="name" autocomplete="name"></label>
+  <label>IBAN <input data-cfg="iban" autocomplete="off" placeholder="SK00 0000 0000 0000 0000 0000"></label>
+  <div class="hint" id="ibanmsg"></div>
+  <label>Správa pre príjemcu <input data-cfg="msg"></label>
+</details>
+
+<h2>Jedlá (počet kusov + celková suma za všetky kusy)</h2>
+<div id="foods"></div>
+<button data-act="addFood">+ jedlo</button>
+
+<h2>Kto čo zjedol</h2>
+<div id="people"></div>
+<button data-act="addPerson">+ človek</button>
+
+<h2>Doprava a poplatky</h2>
+<div class="row">
+  <select id="mode">
+    <option value="A">Doprava + poplatky</option>
+    <option value="B">Zaplatené celkom</option>
+  </select>
+  <input id="extra" class="n" inputmode="decimal" placeholder="0,00 €">
+</div>
+<div class="hint">Zľavnené (červené) ceny z Boldu zadaj pri jedlách; „Celkom" je posledný riadok výpisu.</div>
+
+<h2>Výsledok</h2>
+<div id="out"></div>
+</main>
+<datalist id="names"></datalist>
+
+<script src="calc.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const ls = {
+  get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
+
+const obj = {}; let nid = 0; // každý jedlo/človek/položka má unikátne id; DOM ho nesie v data-id
+const mk = o => (o.id = ++nid, obj[o.id] = o);
+const foods = [], people = [];
+const cfg = { name: '', iban: '', msg: 'Obed', ...ls.get('obed.cfg', {}) };
+let last = null; // posledný platný výsledok (pre tlačidlá Kopírovať)
+
+const label = (f, i) => f.name.trim() || 'Jedlo ' + (i + 1);
+const assigned = f => people.reduce((a, p) => a + p.items.filter(i => i.f == f.id).reduce((b, i) => b + (Number(i.q) || 0), 0), 0);
+
+function renderFoods() {
+  $('#foods').innerHTML = foods.map(f => `<div class="row" data-id="${f.id}">
+    <input class="n" data-k="name" placeholder="Jedlo" value="${esc(f.name)}">
+    <input class="s" data-k="q" type="number" min="1" step="1" value="${esc(f.q)}" aria-label="Počet kusov">
+    <input class="s" data-k="c" inputmode="decimal" placeholder="€ spolu" value="${esc(f.c)}" aria-label="Celková suma">
+    <button class="x" data-act="delFood" aria-label="Zmazať jedlo">✕</button></div>`).join('');
+}
+
+function renderPeople() {
+  people.forEach(p => p.items.forEach(i => { if (!foods.includes(obj[i.f])) i.f = foods[0]?.id ?? ''; }));
+  $('#people').innerHTML = people.map(p => `<div class="person" data-id="${p.id}">
+    <div class="row"><input class="n" data-k="name" list="names" placeholder="Meno" value="${esc(p.name)}">
+      <label class="me"><input type="checkbox" data-k="me" ${p.me ? 'checked' : ''}> to som ja</label>
+      <button class="x" data-act="delPerson" aria-label="Zmazať človeka">✕</button></div>
+    ${p.items.map(i => `<div class="row" data-id="${i.id}">
+      <select data-k="f">${foods.map((f, n) => `<option value="${f.id}" ${f.id == i.f ? 'selected' : ''}>${esc(label(f, n))}</option>`).join('')}</select>
+      <input class="s" data-k="q" type="number" min="1" step="1" value="${esc(i.q)}" aria-label="Počet kusov">
+      <button class="x" data-act="delItem" aria-label="Zmazať položku">✕</button></div>`).join('')}
+    <button data-act="addItem">+ jedlo</button></div>`).join('');
+}
+
+function newItem() { // predvolene prvé jedlo, ktoré ešte nemá priradené všetky kusy
+  const f = foods.find(f => assigned(f) < Number(f.q)) || foods[0];
+  return mk({ f: f?.id ?? '', q: '1' });
+}
+
+function calc() {
+  const res = compute({
+    foods: foods.map(f => ({ id: f.id, name: f.name, q: Number(f.q), c: eur(f.c) })),
+    people: people.map(p => ({ name: p.name, me: p.me, items: p.items.map(i => ({ f: i.f, q: Number(i.q) })) })),
+    extra: { mode: $('#mode').value, c: eur($('#extra').value) }
+  });
+  last = null;
+  if (res.errors.length) {
+    $('#out').innerHTML = `<ul class="err">${res.errors.map(e => `<li>${esc(e)}</li>`).join('')}</ul>`;
+    return;
+  }
+  const iban = normIban(cfg.iban), ok = ibanOk(iban), msg = cfg.msg.trim();
+  const link = r => ok && !r.me && r.total > 0 ? payUrl(iban, cfg.name.trim(), r.total, msg) : '';
+  const d = new Date(), title = `${msg || 'Obed'} ${d.getDate()}.${d.getMonth() + 1}.`;
+  const text = summaryText(res, title, link);
+  last = { res, link, title, text };
+  $('#out').innerHTML =
+    (ok ? '' : '<div class="err">Zadaj platný IBAN v nastaveniach, inak sa nevygenerujú odkazy.</div>') +
+    res.rows.map((r, i) => `<div class="res"><div><b>${esc(r.name)}${r.me ? ' (ja)' : ''}</b>
+      <small>jedlo ${fmt(r.food)} + extra ${fmt(r.extra)}</small></div><strong>${fmt(r.total)}</strong>
+      ${link(r) ? `<button data-act="cp" data-i="${i}">Kopírovať</button><a href="${esc(link(r))}" target="_blank" rel="noopener">test</a>` : ''}</div>`).join('') +
+    `<div class="hint" style="margin-top:8px">Jedlá ${fmt(res.sub)} + extra ${fmt(res.extra)} = <b>${fmt(res.total)}</b></div>
+     <textarea readonly>${esc(text)}</textarea><button class="p" data-act="cpAll">Kopírovať text pre Teams</button>`;
+}
+
+async function copy(t, b) {
+  try { await navigator.clipboard.writeText(t); }
+  catch { const a = document.createElement('textarea'); a.value = t; document.body.append(a); a.select(); document.execCommand('copy'); a.remove(); }
+  const old = b.textContent; b.textContent = 'Skopírované ✓'; setTimeout(() => b.textContent = old, 1500);
+  const saved = ls.get('obed.names', []); // mená si pamätáme až po skopírovaní, nie pri písaní
+  ls.set('obed.names', [...new Set([...saved, ...last.res.rows.filter(r => !r.me).map(r => r.name)])]);
+  fillNames();
+}
+const fillNames = () => $('#names').innerHTML = ls.get('obed.names', []).map(n => `<option value="${esc(n)}">`).join('');
+
+function ibanState() {
+  const v = cfg.iban.trim();
+  $('#ibanmsg').innerHTML = !v ? '' : ibanOk(v) ? '<span id="ok">IBAN je v poriadku ✓</span>' : '<span id="bad">IBAN nie je platný (preklep?)</span>';
+}
+
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.cfg) { cfg[t.dataset.cfg] = t.value; ls.set('obed.cfg', cfg); ibanState(); }
+  else if (t.dataset.k) obj[t.closest('[data-id]').dataset.id][t.dataset.k] = t.type === 'checkbox' ? t.checked : t.value;
+  calc();
+});
+document.addEventListener('change', e => { // zmena názvu jedla = prekresliť výber jedál pri ľuďoch
+  if (e.target.dataset.k === 'name' && foods.includes(obj[e.target.closest('[data-id]').dataset.id])) renderPeople();
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const o = obj[b.closest('[data-id]')?.dataset.id], act = b.dataset.act;
+  const rm = (arr, x) => arr.splice(arr.indexOf(x), 1);
+  if (act === 'cp') return copy(`${last.title} — ${fmt(last.res.rows[b.dataset.i].total)}: ${last.link(last.res.rows[b.dataset.i])}`, b);
+  if (act === 'cpAll') return copy(last.text, b);
+  if (act === 'addFood') foods.push(mk({ name: '', q: '1', c: '' }));
+  if (act === 'delFood') { rm(foods, o); people.forEach(p => p.items = p.items.filter(i => i.f != o.id)); }
+  if (act === 'addPerson') people.push(mk({ name: '', me: false, items: [newItem()] }));
+  if (act === 'delPerson') rm(people, o);
+  if (act === 'addItem') o.items.push(newItem());
+  if (act === 'delItem') rm(people.find(p => p.items.includes(o)).items, o);
+  renderFoods(); renderPeople(); calc();
+});
+
+$('#set').open = !ibanOk(cfg.iban);
+document.querySelectorAll('[data-cfg]').forEach(i => i.value = cfg[i.dataset.cfg]);
+ibanState(); fillNames();
+foods.push(mk({ name: '', q: '1', c: '' }));
+people.push(mk({ name: '', me: false, items: [newItem()] }));
+renderFoods(); renderPeople(); calc();
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
