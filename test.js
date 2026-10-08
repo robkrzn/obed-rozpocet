@@ -14,13 +14,17 @@ assert.deepEqual(split(153, [727, 540, 540]), [61, 46, 46]);
 assert.deepEqual(split(1000, [1, 1, 1]), [334, 333, 333]);
 for (const t of [-457, -1, 0, 1, 99, 1000]) assert.equal(sum(split(t, [3, 7, 1, 13])), t);
 
-// reálna Bolt objednávka: 7,27 + 5,40 + 5,40, extra 1,53, celkom 19,60 -> 7,88 / 5,86 / 5,86
+// reálna Bolt objednávka: 7,27 + 5,40 + 5,40, extra 1,53 (0,51 každému), celkom 19,60 -> 7,78 / 5,91 / 5,91
 const bolt = { foods: [food(1, 'Tanier', 1, '7,27'), food(2, 'Box', 1, '5,40'), food(3, 'Doner', 1, '5,40')],
   people: [one('Jano', 1), one('Mária', 2), one('Peter', 3)] };
 for (const extra of [{ mode: 'A', c: eur('1,53') }, { mode: 'B', c: eur('19,60') }]) {
   const r = compute({ ...bolt, extra });
-  assert.deepEqual(totals(r), [788, 586, 586]); assert.equal(r.total, 1960);
+  assert.deepEqual(totals(r), [778, 591, 591]); assert.equal(r.total, 1960);
 }
+
+// extra sa nedelí podľa jedla: 1,54 / 3 -> zvyšný cent dostane prvý
+const e = compute({ ...bolt, extra: { mode: 'A', c: eur('1,54') } });
+assert.deepEqual(e.rows.map(x => x.extra), [52, 51, 51]); assert.equal(e.total, 1961);
 
 // 3 ks za 10,00 medzi troch; 3 ks medzi dvoch v pomere 2:1
 let r = compute({ foods: [food(1, 'Pizza', 3, '10,00')], people: [one('A', 1), one('B', 1), one('C', 1)], extra: { mode: 'A', c: NaN } });

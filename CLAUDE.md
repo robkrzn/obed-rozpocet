@@ -34,18 +34,24 @@ Spustenie: dvojklik na `index.html` (alebo GitHub Pages). Po zmene `calc.js` vž
 | **Ľudia:** meno + riadky (jedlo, ks) | jedlo sa delí medzi ľudí pomerom kusov; rovnaké meno = jeden podiel; „to som ja" = platca (dostane podiel, odkaz nie) |
 | **Doprava a poplatky** — režim A: extra náklady, režim B: zaplatené celkom | v B sa `extra = celkom − súčet jedál` (môže byť záporné = zľava) |
 
+**Predvolene** sa ľudia generujú z jedál: 1 kus = 1 „Stravník N" s týmto jedlom (predpoklad: každý jedol jedno jedlo).
+Mení sa to automaticky pri zmene jedál/kusov, kým používateľ ručne neupraví ľudí (meno, jedlo, pridanie/zmazanie);
+potom ich appka nechá na pokoji a tlačidlo „↻ stravníci podľa jedál" vráti automatiku. Strop 30 ks na jedlo.
+Predvolené „Stravník N" sa neukladajú do našeptávania mien.
+
 Mená, ktoré sa skopírovali, sa pamätajú na našeptávanie (`datalist`).
 
 ## Výpočet
 
 1. Podiel človeka na jedle = celková suma jedla × jeho ks / ks jedla (najväčší zvyšok, 3 ks za 10,00 € → 3,34 + 3,33 + 3,33).
    Σ priradených ks musí = ks jedla, inak chyba („priradené 2 z 3 ks") a výsledok sa nezobrazí.
-2. `extra` sa delí **proporčne podľa ceny jedla** každého človeka.
+2. `extra` sa delí **vždy rovnako na hlavu** (doprava je pevná suma, nie podiel z jedla; rozhodnutie používateľa).
+   Žiadny prepínač na proporčné delenie. Pri nedeliteľnom centu dostane zvyšok prvý v poradí. Platca sa počíta ako hlava.
 3. Spolu = jedlo + extra. Σ = zaplatená suma presne.
 
 **Bolt:** zadávajú sa **zľavnené (červené) ceny** jedál; ich súčet = „Medzisúčet" z Boldu.
 Poplatok za služby + doručenie ako `extra`, alebo rovno „Celkom" (režim B). Bolt sa neparsuje, prepisuje sa ručne.
-Testovací vektor: 7,27 / 5,40 / 5,40, celkom 19,60 → **7,88 / 5,86 / 5,86**.
+Testovací vektor: 7,27 / 5,40 / 5,40, celkom 19,60 → extra 1,53 = 0,51 každému → **7,78 / 5,91 / 5,91**.
 
 ## Platba = payme.sk odkaz (nie PAY by square)
 

@@ -59,7 +59,7 @@ function compute({ foods, people, extra }) {
   if (!L.length) errors.push('Pridaj aspoň jedného človeka.');
   if (errors.length) return { errors };
 
-  const X = split(ex, food);
+  const X = split(ex, L.map(() => 1)); // extra rovnako na hlavu (doprava je pevná suma)
   const rows = L.map((p, i) => ({ name: p.name, me: p.me, food: food[i], extra: X[i], total: food[i] + X[i] }));
   return { errors, rows, sub, extra: ex, total: sub + ex };
 }

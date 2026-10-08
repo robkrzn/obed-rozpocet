@@ -53,8 +53,10 @@ textarea{width:100%;box-sizing:border-box;min-height:7rem;margin:10px 0 6px}
 <button data-act="addFood">+ jedlo</button>
 
 <h2>Kto čo zjedol</h2>
+<div class="hint" style="margin-bottom:8px">Na každý kus jedla je predvolene jeden stravník. Premenuj ich, alebo uprav jedlá a kusy.</div>
 <div id="people"></div>
 <button data-act="addPerson">+ človek</button>
+<button data-act="autoPeople">↻ stravníci podľa jedál</button>
 
 <h2>Doprava a poplatky</h2>
 <div class="row">
@@ -63,8 +65,7 @@ textarea{width:100%;box-sizing:border-box;min-height:7rem;margin:10px 0 6px}
     <option value="B">Zaplatené celkom</option>
   </select>
   <input id="extra" class="n" inputmode="decimal" placeholder="0,00 €">
-</div>
-<div class="hint">Zľavnené (červené) ceny z Boldu zadaj pri jedlách; „Celkom" je posledný riadok výpisu.</div>
+</div><div class="hint">Extra sa delí rovnako medzi všetkých. Zľavnené (červené) ceny z Boldu zadaj pri jedlách; „Celkom" je posledný riadok výpisu.</div>
 
 <h2>Výsledok</h2>
 <div id="out"></div>
@@ -85,6 +86,7 @@ const mk = o => (o.id = ++nid, obj[o.id] = o);
 const foods = [], people = [];
 const cfg = { name: '', iban: '', msg: 'Obed', ...ls.get('obed.cfg', {}) };
 let last = null; // posledný platný výsledok (pre tlačidlá Kopírovať)
+let auto = true; // ľudia sa generujú z jedál (1 kus = 1 stravník), kým ich používateľ ručne neupraví
 
 const label = (f, i) => f.name.trim() || 'Jedlo ' + (i + 1);
 const assigned = f => people.reduce((a, p) => a + p.items.filter(i => i.f == f.id).reduce((b, i) => b + (Number(i.q) || 0), 0), 0);
@@ -113,6 +115,15 @@ function renderPeople() {
 function newItem() { // predvolene prvé jedlo, ktoré ešte nemá priradené všetky kusy
   const f = foods.find(f => assigned(f) < Number(f.q)) || foods[0];
   return mk({ f: f?.id ?? '', q: '1' });
+}
+
+function syncPeople() {
+  if (!auto) return;
+  people.length = 0;
+  foods.forEach(f => { // ponytail: strop 30 ks na jedlo, aby písanie „100" nezaplavilo formulár
+    for (let i = 0, q = Number.isInteger(+f.q) ? Math.min(+f.q, 30) : 0; i < q; i++)
+      people.push(mk({ name: 'Stravník ' + (people.length + 1), me: false, items: [mk({ f: f.id, q: '1' })] }));
+  });
 }
 
 function calc() {
@@ -145,7 +156,7 @@ async function copy(t, b) {
   catch { const a = document.createElement('textarea'); a.value = t; document.body.append(a); a.select(); document.execCommand('copy'); a.remove(); }
   const old = b.textContent; b.textContent = 'Skopírované ✓'; setTimeout(() => b.textContent = old, 1500);
   const saved = ls.get('obed.names', []); // mená si pamätáme až po skopírovaní, nie pri písaní
-  ls.set('obed.names', [...new Set([...saved, ...last.res.rows.filter(r => !r.me).map(r => r.name)])]);
+  ls.set('obed.names', [...new Set([...saved, ...last.res.rows.filter(r => !r.me && !/^Stravník \d+$/.test(r.name)).map(r => r.name)])]);
   fillNames();
 }
 const fillNames = () => $('#names').innerHTML = ls.get('obed.names', []).map(n => `<option value="${esc(n)}">`).join('');
@@ -158,7 +169,12 @@ function ibanState() {
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset.cfg) { cfg[t.dataset.cfg] = t.value; ls.set('obed.cfg', cfg); ibanState(); }
-  else if (t.dataset.k) obj[t.closest('[data-id]').dataset.id][t.dataset.k] = t.type === 'checkbox' ? t.checked : t.value;
+  else if (t.dataset.k) {
+    const o = obj[t.closest('[data-id]').dataset.id];
+    o[t.dataset.k] = t.type === 'checkbox' ? t.checked : t.value;
+    if (!foods.includes(o)) auto = false; // ručná úprava ľudí vypne automatiku
+    else if (t.dataset.k === 'q') { syncPeople(); renderPeople(); }
+  }
   calc();
 });
 document.addEventListener('change', e => { // zmena názvu jedla = prekresliť výber jedál pri ľuďoch
@@ -170,12 +186,15 @@ document.addEventListener('click', e => {
   const rm = (arr, x) => arr.splice(arr.indexOf(x), 1);
   if (act === 'cp') return copy(`${last.title} — ${fmt(last.res.rows[b.dataset.i].total)}: ${last.link(last.res.rows[b.dataset.i])}`, b);
   if (act === 'cpAll') return copy(last.text, b);
+  if (['addPerson', 'delPerson', 'addItem', 'delItem'].includes(act)) auto = false;
   if (act === 'addFood') foods.push(mk({ name: '', q: '1', c: '' }));
   if (act === 'delFood') { rm(foods, o); people.forEach(p => p.items = p.items.filter(i => i.f != o.id)); }
   if (act === 'addPerson') people.push(mk({ name: '', me: false, items: [newItem()] }));
   if (act === 'delPerson') rm(people, o);
   if (act === 'addItem') o.items.push(newItem());
   if (act === 'delItem') rm(people.find(p => p.items.includes(o)).items, o);
+  if (act === 'autoPeople') auto = true;
+  syncPeople();
   renderFoods(); renderPeople(); calc();
 });
 
@@ -183,7 +202,7 @@ $('#set').open = !ibanOk(cfg.iban);
 document.querySelectorAll('[data-cfg]').forEach(i => i.value = cfg[i.dataset.cfg]);
 ibanState(); fillNames();
 foods.push(mk({ name: '', q: '1', c: '' }));
-people.push(mk({ name: '', me: false, items: [newItem()] }));
+syncPeople();
 renderFoods(); renderPeople(); calc();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js');
