@@ -32,7 +32,7 @@ Spustenie: dvojklik na `index.html` (alebo GitHub Pages). Po zmene `calc.js` vž
 | Nastavenia: meno príjemcu, IBAN, správa (default „Obed") | raz, `localStorage`; pri neplatnom IBANe sa odkazy negenerujú |
 | **Jedlá:** názov + počet kusov + **celková suma** za všetky kusy | jedlo sa zadá raz |
 | **Ľudia:** meno + riadky (jedlo, ks) | jedlo sa delí medzi ľudí pomerom kusov; rovnaké meno = jeden podiel; „to som ja" = platca (dostane podiel, odkaz nie) |
-| **Doprava a poplatky** — režim A: extra náklady, režim B: zaplatené celkom | v B sa `extra = celkom − súčet jedál` (môže byť záporné = zľava) |
+| **Doprava a poplatky** — režim B: zaplatené celkom (**predvolený**), režim A: extra náklady | v B sa `extra = celkom − súčet jedál` (môže byť záporné = zľava) |
 
 **Predvolene** sa ľudia generujú z jedál: 1 kus = 1 „Stravník N" s týmto jedlom (predpoklad: každý jedol jedno jedlo).
 Mení sa to automaticky pri zmene jedál/kusov, kým používateľ ručne neupraví ľudí (meno, jedlo, pridanie/zmazanie);
