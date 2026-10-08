@@ -22,6 +22,15 @@ for (const extra of [{ mode: 'A', c: eur('1,53') }, { mode: 'B', c: eur('19,60')
   assert.deepEqual(totals(r), [778, 591, 591]); assert.equal(r.total, 1960);
 }
 
+// po zaplatení Bolt ukáže len pôvodné ceny + zľavu: 9,70 / 7,20 / 7,20, zľava 6,03 -> zľavnené 7,27 / 5,40 / 5,40
+const after = { foods: [food(1, 'Tanier', 1, '9,70'), food(2, 'Box', 1, '7,20'), food(3, 'Doner', 1, '7,20')], people: bolt.people };
+const r0 = compute({ ...after, extra: { mode: 'B', c: eur('19,60'), discount: eur('6,03') } });
+assert.deepEqual(r0.rows.map(x => x.food), [727, 540, 540]); assert.deepEqual(totals(r0), [778, 591, 591]);
+assert.equal(r0.sub, 1807); assert.equal(r0.orig, 2410);
+assert.deepEqual(totals(compute({ ...after, extra: { mode: 'A', c: eur('1,53'), discount: eur('6,03') } })), [778, 591, 591]);
+assert.equal(after.foods[0].c, 970); // vstup sa nemení
+assert.match(compute({ ...after, extra: { mode: 'A', c: 0, discount: eur('30,00') } }).errors[0], /Zľava/);
+
 // extra sa nedelí podľa jedla: 1,54 / 3 -> zvyšný cent dostane prvý
 const e = compute({ ...bolt, extra: { mode: 'A', c: eur('1,54') } });
 assert.deepEqual(e.rows.map(x => x.extra), [52, 51, 51]); assert.equal(e.total, 1961);
@@ -33,8 +42,10 @@ r = compute({ foods: [food(1, 'Pizza', 3, '10,00')], people: [one('A', 1, 2), on
 assert.deepEqual(totals(r), [667, 333]);
 
 // záporný extra (zľava) a jeden človek
-r = compute({ ...bolt, extra: { mode: 'B', c: eur('15,00') } });
-assert.equal(sum(totals(r)), 1500);
+r = compute({ ...bolt, extra: { mode: 'B', c: eur('15,00') } }); // jedlá 18,07 > zaplatené 15,00 => záporná doprava
+assert.match(r.errors[0], /záporná/); assert(!r.rows);
+assert.match(compute({ ...bolt, extra: { mode: 'A', c: eur('-1,00') } }).errors[0], /záporné/);
+assert.equal(compute({ ...bolt, extra: { mode: 'B', c: eur('18,07') } }).extra, 0); // presne bez dopravy je v poriadku
 r = compute({ foods: [food(1, 'X', 1, '9,99')], people: [one('A', 1)], extra: { mode: 'B', c: eur('11,50') } });
 assert.deepEqual(totals(r), [1150]);
 

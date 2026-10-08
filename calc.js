@@ -23,9 +23,10 @@ function split(total, w) {
 
 // foods:  [{id, name, q (ks), c (celková suma za všetky ks, centy alebo NaN)}]
 // people: [{name, me, items: [{f: foodId, q: ks}]}]
-// extra:  {mode: 'A' (doprava+poplatky) | 'B' (zaplatené celkom), c: centy alebo NaN}
+// extra:  {mode: 'A' (doprava+poplatky) | 'B' (zaplatené celkom), c: centy alebo NaN, discount: voliteľná celková zľava v centoch}
 function compute({ foods, people, extra }) {
   const errors = [], byId = {};
+  foods = foods.map(f => ({ ...f })); // ceny sa nižšie upravujú (zľava), vstup nemeníme
   foods.forEach((f, i) => f.label = f.name.trim() || 'Jedlo ' + (i + 1));
   foods = foods.filter(f => f.name.trim() || !isNaN(f.c));
   if (!foods.length) return { errors: ['Pridaj aspoň jedno jedlo.'] };
@@ -33,6 +34,12 @@ function compute({ foods, people, extra }) {
     byId[f.id] = f;
     if (!(f.c > 0 && Number.isInteger(f.q) && f.q >= 1)) errors.push(`${f.label}: doplň cenu a počet kusov.`);
   });
+
+  // Zľava z výpisu Boldu po zaplatení: jedlá sú zadané za pôvodnú cenu, celková zľava sa rozdelí
+  // medzi ne pomerom cien (najväčší zvyšok) -> zľavnené ceny presne ako pred platbou.
+  const orig = foods.reduce((a, f) => a + (f.c > 0 ? f.c : 0), 0), D = extra.discount > 0 ? extra.discount : 0;
+  if (D >= orig && D) errors.push('Zľava je väčšia alebo rovná cene jedál.');
+  else if (D) split(D, foods.map(f => f.c > 0 ? f.c : 0)).forEach((d, i) => { if (foods[i].c > 0) foods[i].c -= d; });
 
   const P = {}; // ľudia zlúčení podľa mena => jeden podiel a jeden odkaz
   people.forEach(p => {
@@ -54,14 +61,17 @@ function compute({ foods, people, extra }) {
   const sub = foods.reduce((a, f) => a + (f.c > 0 ? f.c : 0), 0);
   let ex = extra.c;
   if (extra.mode === 'B') {
-    if (isNaN(ex)) errors.push('Zadaj, koľko si zaplatil celkom.'); else ex -= sub;
+    if (isNaN(ex)) errors.push('Zadaj, koľko si zaplatil celkom.');
+    else if (ex < sub) errors.push(`Jedlá (${fmt(sub)}) sú drahšie než zaplatená suma (${fmt(ex)}), doprava by vyšla záporná. Skontroluj ceny jedál alebo zadaj zľavu.`);
+    else ex -= sub;
   } else if (isNaN(ex)) ex = 0;
+  else if (ex < 0) errors.push('Doprava a poplatky nemôžu byť záporné.');
   if (!L.length) errors.push('Pridaj aspoň jedného človeka.');
   if (errors.length) return { errors };
 
   const X = split(ex, L.map(() => 1)); // extra rovnako na hlavu (doprava je pevná suma)
   const rows = L.map((p, i) => ({ name: p.name, me: p.me, food: food[i], extra: X[i], total: food[i] + X[i] }));
-  return { errors, rows, sub, extra: ex, total: sub + ex };
+  return { errors, rows, sub, extra: ex, total: sub + ex, orig, discount: D };
 }
 
 const normIban = s => s.replace(/\s/g, '').toUpperCase();
@@ -80,7 +90,7 @@ function payUrl(iban, name, cents, msg) {
 
 // Text do Teamsu: hlavička + riadok na človeka (bez platcu); link(row) vráti URL alebo ''
 function summaryText(res, title, link) {
-  const note = !res.extra ? '' : ` (${res.extra > 0 ? 'doprava a poplatky' : 'zľava'} ${fmt(Math.abs(res.extra))})`;
+  const note = res.extra ? ` (doprava a poplatky ${fmt(res.extra)})` : '';
   return `${title} — celkom ${fmt(res.total)}${note}\n` +
     res.rows.filter(r => !r.me).map(r => `${r.name} — ${fmt(r.total)}` + (link(r) ? ': ' + link(r) : '')).join('\n');
 }

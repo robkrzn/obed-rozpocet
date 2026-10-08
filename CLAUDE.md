@@ -32,7 +32,8 @@ Spustenie: dvojklik na `index.html` (alebo GitHub Pages). Po zmene `calc.js` vž
 | Nastavenia: meno príjemcu, IBAN, správa (default „Obed") | raz, `localStorage`; pri neplatnom IBANe sa odkazy negenerujú |
 | **Jedlá:** názov + počet kusov + **celková suma** za všetky kusy | jedlo sa zadá raz |
 | **Ľudia:** meno + riadky (jedlo, ks) | jedlo sa delí medzi ľudí pomerom kusov; rovnaké meno = jeden podiel; „to som ja" = platca (dostane podiel, odkaz nie) |
-| **Doprava a poplatky** — režim B: zaplatené celkom (**predvolený**), režim A: extra náklady | v B sa `extra = celkom − súčet jedál` (môže byť záporné = zľava) |
+| **Zľava z výpisu** (voliteľná, celková v €) | po zaplatení Bolt ukáže len **pôvodné ceny** jedál a zľavu zvlášť → zadajú sa pôvodné ceny + táto zľava; viď „Výpočet" |
+| **Doprava a poplatky** — režim B: zaplatené celkom (**predvolený**), režim A: extra náklady | v B sa `extra = celkom − súčet jedál` ; ak sú jedlá drahšie než zaplatená suma (záporná doprava), appka ukáže chybu — zľava sa rieši vlastným poľom |
 
 **Predvolene** sa ľudia generujú z jedál: 1 kus = 1 „Stravník N" s týmto jedlom (predpoklad: každý jedol jedno jedlo).
 Mení sa to automaticky pri zmene jedál/kusov, kým používateľ ručne neupraví ľudí (meno, jedlo, pridanie/zmazanie);
@@ -49,7 +50,14 @@ Mená, ktoré sa skopírovali, sa pamätajú na našeptávanie (`datalist`).
    Žiadny prepínač na proporčné delenie. Pri nedeliteľnom centu dostane zvyšok prvý v poradí. Platca sa počíta ako hlava.
 3. Spolu = jedlo + extra. Σ = zaplatená suma presne.
 
-**Bolt:** zadávajú sa **zľavnené (červené) ceny** jedál; ich súčet = „Medzisúčet" z Boldu.
+**Zľava spätne:** ak je pole zľavy vyplnené, ceny jedál sa berú ako pôvodné a celková zľava `D` sa rozdelí medzi jedlá
+pomerom pôvodných cien (najväčší zvyšok) → zľavnená cena jedla = pôvodná − jeho podiel zľavy. Appka ukáže aj %
+(6,03 / 24,10 = 25,0 %). Súčet zľavnených cien je presne „Medzisúčet" z Boldu; pre vzorku nižšie
+9,70 / 7,20 / 7,20 so zľavou 6,03 dá 7,27 / 5,40 / 5,40 — rovnako ako výpis pred platbou.
+Predpoklad: zľava sa vzťahuje na všetky jedlá rovnakým %. Ak by Bolt zľavnil len niektoré jedlá, výsledok by bol približný
+(vtedy radšej zadať zľavnené ceny z výpisu pred platbou a zľavu nechať prázdnu).
+
+**Bolt (pred platbou):** zadávajú sa **zľavnené (červené) ceny** jedál; ich súčet = „Medzisúčet" z Boldu.
 Poplatok za služby + doručenie ako `extra`, alebo rovno „Celkom" (režim B). Bolt sa neparsuje, prepisuje sa ručne.
 Testovací vektor: 7,27 / 5,40 / 5,40, celkom 19,60 → extra 1,53 = 0,51 každému → **7,78 / 5,91 / 5,91**.
 

@@ -58,14 +58,18 @@ textarea{width:100%;box-sizing:border-box;min-height:7rem;margin:10px 0 6px}
 <button data-act="addPerson">+ človek</button>
 <button data-act="autoPeople">↻ stravníci podľa jedál</button>
 
-<h2>Doprava a poplatky</h2>
+<h2>Zľava, doprava a poplatky</h2>
+<div class="row">
+  <input id="disc" class="n" inputmode="decimal" placeholder="Zľava z výpisu, € (voliteľné)">
+</div>
+<div class="hint" style="margin-bottom:8px">Po zaplatení Bolt ukazuje pôvodné ceny jedál a zľavu zvlášť. Zadaj pôvodné ceny a sem celkovú zľavu — appka ju rozdelí medzi jedlá a dopočíta zľavnené ceny.</div>
 <div class="row">
   <select id="mode">
     <option value="B">Zaplatené celkom</option>
     <option value="A">Doprava + poplatky</option>
   </select>
   <input id="extra" class="n" inputmode="decimal" placeholder="0,00 €">
-</div><div class="hint">Extra sa delí rovnako medzi všetkých. Zľavnené (červené) ceny z Boldu zadaj pri jedlách; „Celkom" je posledný riadok výpisu.</div>
+</div><div class="hint">Extra sa delí rovnako medzi všetkých. Pred platbou zadaj červené (zľavnené) ceny jedál a zľavu nechaj prázdnu; „Celkom" je posledný riadok výpisu.</div>
 
 <h2>Výsledok</h2>
 <div id="out"></div>
@@ -130,7 +134,7 @@ function calc() {
   const res = compute({
     foods: foods.map(f => ({ id: f.id, name: f.name, q: Number(f.q), c: eur(f.c) })),
     people: people.map(p => ({ name: p.name, me: p.me, items: p.items.map(i => ({ f: i.f, q: Number(i.q) })) })),
-    extra: { mode: $('#mode').value, c: eur($('#extra').value) }
+    extra: { mode: $('#mode').value, c: eur($('#extra').value), discount: eur($('#disc').value) }
   });
   last = null;
   if (res.errors.length) {
@@ -147,7 +151,7 @@ function calc() {
     res.rows.map((r, i) => `<div class="res"><div><b>${esc(r.name)}${r.me ? ' (ja)' : ''}</b>
       <small>jedlo ${fmt(r.food)} + extra ${fmt(r.extra)}</small></div><strong>${fmt(r.total)}</strong>
       ${link(r) ? `<button data-act="cp" data-i="${i}">Kopírovať</button><a href="${esc(link(r))}" target="_blank" rel="noopener">test</a>` : ''}</div>`).join('') +
-    `<div class="hint" style="margin-top:8px">Jedlá ${fmt(res.sub)} + extra ${fmt(res.extra)} = <b>${fmt(res.total)}</b></div>
+    `<div class="hint" style="margin-top:8px">${res.discount ? `Pôvodná cena ${fmt(res.orig)} − zľava ${fmt(res.discount)} (${(res.discount / res.orig * 100).toFixed(1).replace('.', ',')} %) → ` : ''}Jedlá ${fmt(res.sub)} + extra ${fmt(res.extra)} = <b>${fmt(res.total)}</b></div>
      <textarea readonly>${esc(text)}</textarea><button class="p" data-act="cpAll">Kopírovať text pre Teams</button>`;
 }
 
